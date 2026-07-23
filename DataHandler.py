@@ -78,8 +78,8 @@ class DataHandler:
 		if args.data == 'tiktok':
 			self.audio_feats, args.audio_feat_dim = self.loadFeatures(self.audiofile)
 
-		self.diffusionData = DiffusionData(self.trnMat)
-		self.diffusionLoader = dataloader.DataLoader(self.diffusionData, batch_size=args.batch, shuffle=True, num_workers=0)
+		self.gflownetData = GFlowNetData(self.trnMat)
+		self.gflownetLoader = dataloader.DataLoader(self.gflownetData, batch_size=args.batch, shuffle=True, num_workers=0)
 
 class TrnData(data.Dataset):
 	def __init__(self, coomat):
@@ -126,7 +126,7 @@ class TstData(data.Dataset):
 	def __getitem__(self, idx):
 		return self.tstUsrs[idx], np.reshape(self.csrmat[self.tstUsrs[idx]].toarray(), [-1])
 	
-class DiffusionData(data.Dataset):
+class GFlowNetData(data.Dataset):
 	def __init__(self, data):
 		self.data = data.tocsr()
 

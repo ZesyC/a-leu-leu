@@ -114,10 +114,10 @@ class Coach:
 			epTBLoss_audio = 0
 		steps = trnLoader.dataset.__len__() // args.batch
 
-		diffusionLoader = self.handler.diffusionLoader
+		gflownetLoader = self.handler.gflownetLoader
 
 		# Phase 1: GFlowNet training
-		for i, batch in enumerate(diffusionLoader):
+		for i, batch in enumerate(gflownetLoader):
 			batch_item, batch_index = batch
 			batch_item, batch_index = batch_item.cuda(), batch_index.cuda()
 
@@ -156,7 +156,7 @@ class Coach:
 			if args.data == 'tiktok':
 				self.gfn_opt_audio.step()
 
-			log('GFlowNet Step %d/%d' % (i, diffusionLoader.dataset.__len__() // args.batch), save=False, oneline=True)
+			log('GFlowNet Step %d/%d' % (i, gflownetLoader.dataset.__len__() // args.batch), save=False, oneline=True)
 
 		log('')
 		log('Start to re-build UI matrix')
@@ -183,7 +183,7 @@ class Coach:
 			if args.data == 'tiktok':
 				audio_feats = self.model.getAudioFeats().detach()
 
-			for _, batch in enumerate(diffusionLoader):
+			for _, batch in enumerate(gflownetLoader):
 				batch_item, batch_index = batch
 				batch_item, batch_index = batch_item.cuda(), batch_index.cuda()
 
@@ -312,10 +312,10 @@ class Coach:
 		ret['Loss'] = epLoss / steps
 		ret['BPR Loss'] = epRecLoss / steps
 		ret['CL loss'] = epClLoss / steps
-		ret['TB image loss'] = epTBLoss_image / (diffusionLoader.dataset.__len__() // args.batch)
-		ret['TB text loss'] = epTBLoss_text / (diffusionLoader.dataset.__len__() // args.batch)
+		ret['TB image loss'] = epTBLoss_image / (gflownetLoader.dataset.__len__() // args.batch)
+		ret['TB text loss'] = epTBLoss_text / (gflownetLoader.dataset.__len__() // args.batch)
 		if args.data == 'tiktok':
-			ret['TB audio loss'] = epTBLoss_audio / (diffusionLoader.dataset.__len__() // args.batch)
+			ret['TB audio loss'] = epTBLoss_audio / (gflownetLoader.dataset.__len__() // args.batch)
 		return ret
 
 	def testEpoch(self):
