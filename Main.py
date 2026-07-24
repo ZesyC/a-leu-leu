@@ -70,16 +70,16 @@ class Coach:
 		self.opt = torch.optim.Adam(self.model.parameters(), lr=args.lr, weight_decay=0)
 
 		self.gfn_image = GFlowNet(args.latdim, args.gfn_num_blocks, args.latdim,
-			args.gfn_hidden_dim, args.gfn_reward_temp, args.gfn_beta_ndcg, args.topk).cuda()
+			args.gfn_hidden_dim, args.gfn_reward_temp, args.gfn_beta_ndcg, args.topk, args.gfn_tau_ndcg).cuda()
 		self.gfn_opt_image = torch.optim.Adam(self.gfn_image.parameters(), lr=args.gfn_lr, weight_decay=0)
 
 		self.gfn_text = GFlowNet(args.latdim, args.gfn_num_blocks, args.latdim,
-			args.gfn_hidden_dim, args.gfn_reward_temp, args.gfn_beta_ndcg, args.topk).cuda()
+			args.gfn_hidden_dim, args.gfn_reward_temp, args.gfn_beta_ndcg, args.topk, args.gfn_tau_ndcg).cuda()
 		self.gfn_opt_text = torch.optim.Adam(self.gfn_text.parameters(), lr=args.gfn_lr, weight_decay=0)
 
 		if args.data == 'tiktok':
 			self.gfn_audio = GFlowNet(args.latdim, args.gfn_num_blocks, args.latdim,
-				args.gfn_hidden_dim, args.gfn_reward_temp, args.gfn_beta_ndcg, args.topk).cuda()
+				args.gfn_hidden_dim, args.gfn_reward_temp, args.gfn_beta_ndcg, args.topk, args.gfn_tau_ndcg).cuda()
 			self.gfn_opt_audio = torch.optim.Adam(self.gfn_audio.parameters(), lr=args.gfn_lr, weight_decay=0)
 
 	def normalizeAdj(self, mat): 

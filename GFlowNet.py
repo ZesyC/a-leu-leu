@@ -64,11 +64,11 @@ class GFlowNet(nn.Module):
 		L_TB = (log Z + sum(log P_F) - log R(x0) - sum(log P_B))^2
 
 	Reward:
-		R(x0) = exp((Score_BPR(x0) + beta * NDCG@K(x0)) / tau)
+		R(x0) = exp((Score_BPR(x0) + beta * approxNDCG@K(x0)) / tau)
 	"""
 
 	def __init__(self, embed_dim, num_blocks, context_dim, hidden_dim=256,
-				 reward_temp=1.0, beta_ndcg=0.0, topk=20):
+				 reward_temp=1.0, beta_ndcg=0.0, topk=20, tau_ndcg=1.0):
 		super(GFlowNet, self).__init__()
 		assert embed_dim % num_blocks == 0, \
 			f"embed_dim ({embed_dim}) must be divisible by num_blocks ({num_blocks})"
@@ -79,6 +79,7 @@ class GFlowNet(nn.Module):
 		self.reward_temp = reward_temp
 		self.beta_ndcg = beta_ndcg
 		self.topk = topk
+		self.tau_ndcg = tau_ndcg
 
 		# Learnable log partition function Z
 		self.log_Z = nn.Parameter(torch.zeros(1))
@@ -193,28 +194,46 @@ class GFlowNet(nn.Module):
 
 		bpr_score = (scores * pos_mask).sum(-1) / n_pos - (scores * neg_mask).sum(-1) / n_neg
 
-		# --- NDCG@K ---
-		ndcg = self._compute_ndcg(scores, interactions, self.topk)
+		# --- approxNDCG@K ---
+		ndcg = self._compute_soft_ndcg(scores, interactions, self.topk)
 
 		# log R(x0) = (Score_BPR + beta * NDCG@K) / tau
 		log_reward = (bpr_score + self.beta_ndcg * ndcg) / self.reward_temp
 		return log_reward
 
-	def _compute_ndcg(self, scores, interactions, k):
-		"""Compute NDCG@K per user (non-differentiable, fine for GFlowNet reward)."""
+	def _compute_soft_ndcg(self, scores, interactions, k):
+		"""
+		Compute approxNDCG@K per user (soft NDCG).
+
+		Approximate rank of item i:
+			pi_hat(i) = 1 + sum_{j != i} sigmoid((s_j - s_i) / tau_ndcg)
+
+		Soft DCG = sum_i rel_i / log2(1 + pi_hat(i))
+		"""
 		actual_k = min(k, scores.shape[1])
 
-		_, topk_idx = torch.topk(scores, k=actual_k, dim=-1)
-		rel = torch.gather(interactions, 1, topk_idx)
+		# Chon top-K candidates de giam complexity
+		_, topk_idx = torch.topk(scores.detach(), k=actual_k, dim=-1)
 
-		positions = torch.arange(1, actual_k + 1, dtype=torch.float32, device=scores.device)
-		discounts = 1.0 / torch.log2(positions + 1.0)
+		# Lay scores va relevance cua top-K items
+		topk_scores = torch.gather(scores, 1, topk_idx)        # (batch, K)
+		topk_rel = torch.gather(interactions, 1, topk_idx)      # (batch, K)
 
-		dcg = (rel * discounts.unsqueeze(0)).sum(dim=-1)
+		# Approximate ranks trong top-K
+		# score_diff[b, i, j] = topk_scores[b, j] - topk_scores[b, i]
+		score_diff = topk_scores.unsqueeze(1) - topk_scores.unsqueeze(2)  # (batch, K, K)
+		approx_ranks = 1.0 + torch.sigmoid(score_diff / self.tau_ndcg).sum(dim=-1) - 0.5
+		# tru 0.5 vi sigmoid(0) = 0.5 (j == i)
 
+		# Soft DCG
+		discounts = 1.0 / torch.log2(1.0 + approx_ranks)        # (batch, K)
+		dcg = (topk_rel * discounts).sum(dim=-1)                 # (batch,)
+
+		# IDCG (hard sort vi ideal ranking co dinh)
 		ideal_rel, _ = interactions.sort(dim=-1, descending=True)
 		ideal_rel = ideal_rel[:, :actual_k]
-		idcg = (ideal_rel * discounts.unsqueeze(0)).sum(dim=-1)
+		positions = torch.arange(1, actual_k + 1, dtype=torch.float32, device=scores.device)
+		idcg = (ideal_rel / torch.log2(1.0 + positions)).sum(dim=-1)
 
 		return dcg / idcg.clamp(min=1e-8)
 

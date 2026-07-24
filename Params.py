@@ -24,6 +24,7 @@ def ParseArgs():
 	parser.add_argument('--gfn_hidden_dim', type=int, default=256, help='hidden dim of forward/backward policy')
 	parser.add_argument('--gfn_reward_temp', type=float, default=1.0, help='tau: temperature for reward')
 	parser.add_argument('--gfn_beta_ndcg', type=float, default=0.5, help='beta: weight for NDCG in reward')
+	parser.add_argument('--gfn_tau_ndcg', type=float, default=1.0, help='tau_ndcg: temperature for soft NDCG approximation')
 	parser.add_argument('--gfn_lr', type=float, default=1e-3, help='learning rate for GFlowNet')
 
 	parser.add_argument('--rebuild_k', type=int, default=1)
